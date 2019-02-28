@@ -12,12 +12,19 @@ class Cache<Key: Hashable, Value> {
     
     private var store: [Key: Value] = [:]
     
+    let queue = DispatchQueue(label: "CacheQueue")
+    
     func cache(value: Value, for key: Key) {
-        store[key] = value
+        queue.async {
+            self.store[key] = value
+        }
     }
     
     func value(for key: Key) -> Value? {
-        guard let value = store[key] else { return nil }
-        return value
+        var cacheValue: Value?
+        queue.sync {
+            cacheValue = store[key]
+        }
+        return cacheValue
     }
 }
