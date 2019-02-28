@@ -67,9 +67,19 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
         let photoReference = photoReferences[indexPath.item]
         
 //         TODO: Implement image loading here
+        
         let lock = NSLock()
         lock.lock()
         let index = indexPath
+        
+        if let cachedValue = cache.value(for: photoReference.id) {
+            let image = UIImage(data: cachedValue)
+            if indexPath == index {
+                cell.imageView.image = image
+            }
+            lock.unlock()
+            return
+        }
         
         if let url = photoReference.imageURL.usingHTTPS {
             URLSession.shared.dataTask(with: url) { (data, _, error) in
@@ -88,6 +98,7 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
                     let image = UIImage(data: data)
                     if indexPath == index {
                         cell.imageView.image = image
+                        self.cache.cache(value: data, for: photoReference.id)
                     }
                 }
                 lock.unlock()
@@ -96,6 +107,8 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
     }
     
     // Properties
+    
+    let cache = Cache<Int, Data>()
     
     private let client = MarsRoverClient()
     
