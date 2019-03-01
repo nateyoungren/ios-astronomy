@@ -68,49 +68,70 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
         
 //         TODO: Implement image loading here
         
-        let lock = NSLock()
-        lock.lock()
-        let index = indexPath
+//        let lock = NSLock()
+//        lock.lock()
+//        let index = indexPath
+//
+//
         
-        if let cachedValue = cache.value(for: photoReference.id) {
-            let image = UIImage(data: cachedValue)
-            if indexPath == index {
+        let photoFetchOperation = FetchPhotoOperation(photoReference: photoReference)
+        
+        let cacheOperation = BlockOperation {
+            self.cache.cache(value: photoFetchOperation.imageData!, for: photoReference.id)
+        }
+        
+        let reuseCheckOperation = BlockOperation {
+            if let cachedValue = self.cache.value(for: photoReference.id) {
+                let image = UIImage(data: cachedValue)
                 cell.imageView.image = image
+                return
             }
-            lock.unlock()
-            return
         }
         
-        if let url = photoReference.imageURL.usingHTTPS {
-            URLSession.shared.dataTask(with: url) { (data, _, error) in
-                
-                if let error = error {
-                    NSLog("Error loading from server: \(error)")
-                    return
-                }
-                
-                guard let data = data else {
-                    NSLog("Error loading data: \(NSError())")
-                    return
-                }
-                
-                DispatchQueue.main.async {
-                    let image = UIImage(data: data)
-                    if indexPath == index {
-                        cell.imageView.image = image
-                        self.cache.cache(value: data, for: photoReference.id)
-                    }
-                }
-                lock.unlock()
-            }.resume()
-        }
+        cacheOperation.addDependency(photoFetchOperation)
+        reuseCheckOperation.addDependency(photoFetchOperation)
+        
+        photoFetchQueue.addOperation(photoFetchOperation)
+        photoFetchQueue.addOperation(cacheOperation)
+
+        OperationQueue.main.addOperation(reuseCheckOperation)
+        
+        fetchOperations[photoReference.id] = photoFetchOperation
+        
+//        if let url = photoReference.imageURL.usingHTTPS {
+//            URLSession.shared.dataTask(with: url) { (data, _, error) in
+//
+//                if let error = error {
+//                    NSLog("Error loading from server: \(error)")
+//                    return
+//                }
+//
+//                guard let data = data else {
+//                    NSLog("Error loading data: \(NSError())")
+//                    return
+//                }
+//
+//                DispatchQueue.main.async {
+//                    let image = UIImage(data: data)
+//                    if indexPath == index {
+//                        cell.imageView.image = image
+//                        self.cache.cache(value: data, for: photoReference.id)
+//                    }
+//                }
+//                lock.unlock()
+//            }.resume()
+//        }
     }
     
     // Properties
     
+    var fetchOperations: [Int: FetchPhotoOperation]  = [:]
+    
     let cache = Cache<Int, Data>()
     
     private let client = MarsRoverClient()
+    
+    private let photoFetchQueue = OperationQueue()
     
     private var roverInfo: MarsRover? {
         didSet {

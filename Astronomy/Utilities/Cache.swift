@@ -21,10 +21,6 @@ class Cache<Key: Hashable, Value> {
     }
     
     func value(for key: Key) -> Value? {
-        var cacheValue: Value?
-        queue.sync {
-            cacheValue = store[key]
-        }
-        return cacheValue
+        return queue.sync { store[key] }
     }
 }
