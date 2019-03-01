@@ -60,6 +60,12 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
         return UIEdgeInsets(top: 0, left: 10.0, bottom: 0, right: 10.0)
     }
     
+    func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        let photoReference = photoReferences[indexPath.item]
+        let fetchOperation = fetchOperations[photoReference.id]
+        fetchOperation?.cancel()
+    }
+    
     // MARK: - Private
     
     private func loadImage(forCell cell: ImageCollectionViewCell, forItemAt indexPath: IndexPath) {
@@ -68,16 +74,12 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
         
 //         TODO: Implement image loading here
         
-//        let lock = NSLock()
-//        lock.lock()
-//        let index = indexPath
-//
-//
         
         let photoFetchOperation = FetchPhotoOperation(photoReference: photoReference)
         
         let cacheOperation = BlockOperation {
-            self.cache.cache(value: photoFetchOperation.imageData!, for: photoReference.id)
+            guard let image = photoFetchOperation.imageData else { return }
+            self.cache.cache(value: image, for: photoReference.id)
         }
         
         let reuseCheckOperation = BlockOperation {
