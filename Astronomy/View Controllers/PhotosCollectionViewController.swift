@@ -73,7 +73,11 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
         let photoReference = photoReferences[indexPath.item]
         
 //         TODO: Implement image loading here
-        
+        if let cachedValue = self.cache.value(for: photoReference.id) {
+            let image = UIImage(data: cachedValue)
+            cell.imageView.image = image
+            return
+        }
         
         let photoFetchOperation = FetchPhotoOperation(photoReference: photoReference)
         
@@ -83,10 +87,13 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
         }
         
         let reuseCheckOperation = BlockOperation {
-            if let cachedValue = self.cache.value(for: photoReference.id) {
-                let image = UIImage(data: cachedValue)
-                cell.imageView.image = image
+            if let currentIndexPath = self.collectionView.indexPath(for: cell),
+                currentIndexPath != indexPath {
                 return
+            }
+            
+            if let image = photoFetchOperation.imageData {
+                cell.imageView.image = UIImage(data: image)
             }
         }
         
@@ -99,30 +106,6 @@ class PhotosCollectionViewController: UIViewController, UICollectionViewDataSour
         OperationQueue.main.addOperation(reuseCheckOperation)
         
         fetchOperations[photoReference.id] = photoFetchOperation
-        
-//        if let url = photoReference.imageURL.usingHTTPS {
-//            URLSession.shared.dataTask(with: url) { (data, _, error) in
-//
-//                if let error = error {
-//                    NSLog("Error loading from server: \(error)")
-//                    return
-//                }
-//
-//                guard let data = data else {
-//                    NSLog("Error loading data: \(NSError())")
-//                    return
-//                }
-//
-//                DispatchQueue.main.async {
-//                    let image = UIImage(data: data)
-//                    if indexPath == index {
-//                        cell.imageView.image = image
-//                        self.cache.cache(value: data, for: photoReference.id)
-//                    }
-//                }
-//                lock.unlock()
-//            }.resume()
-//        }
     }
     
     // Properties
